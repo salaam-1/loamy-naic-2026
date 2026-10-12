@@ -1,0 +1,114 @@
+app = "loam-copilot-backend"
+primary_region = "jnb"
+# Fly.io configuration for the Loam backend (server/index.ts).
+#
+# THIS FILE IS NOT DEPLOYABLE AS IT STANDS -- BY DESIGN.
+#
+# Fly's reference states the application name is the first key/value in any
+# fly.toml, so `fly deploy` will refuse until `app` exists. It is left out
+# because an app name belongs to your Fly account: inventing one would either
+# collide with an existing app or silently create a new one under a name you
+# did not choose. Same for the region.
+#
+# Add both in one step:
+#
+#   fly launch --no-deploy        # writes `app` and `primary_region` for you,
+#                                 # keeping the rest of this file
+#
+# or by hand:
+#
+#   app = "<your-app-name>"
+#   primary_region = "jnb"        # Johannesburg is Fly's closest region to
+#                                 # Nigeria; "lhr" is the usual alternative.
+#
+# Nothing in this file is a secret. Credentials go in `fly secrets set`, which
+# stores them outside the image and outside this repository.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Matches server/index.ts: `Number(env.PORT) || 8787`, `env.HOST || '0.0.0.0'`.
+  PORT = "8787"
+  HOST = "0.0.0.0"
+
+  # LOAM_ENV IS NOT SET HERE, AND THAT IS ON PURPOSE.
+  #
+  # `src/lib/loam/model/select.ts` refuses to start when LOAM_ENV=production
+  # and no hosted provider is configured -- it throws rather than silently
+  # falling back to a local Ollama the cloud cannot reach. That guard is
+  # correct, and it means setting it now would put the machine into a
+  # crash-loop before any inference endpoint exists.
+  #
+  # So the first deploy comes up in development mode, which is enough to
+  # prove /healthz. Once LOAM_HOSTED_MODEL and LOAM_HOSTED_TOKEN are set:
+  #
+  #   fly secrets set LOAM_ENV=production
+  #
+  # and the guard starts doing its job.
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+
+  # Keep the machine up. A Loam turn is already slow; adding a cold start in
+  # front of it during a live demonstration is the wrong trade.
+  #
+  # "off" is a STRING, not a boolean -- Fly's reference lists "off", "stop"
+  # and "suspend", and a boolean here is rejected. `min_machines_running` is
+  # deliberately omitted: it only applies when auto_stop is "stop" or
+  # "suspend", so pairing it with "off" would be noise.
+  #
+  # If idle cost later matters more than first-response latency:
+  #   auto_stop_machines = "suspend"
+  #   min_machines_running = 0
+  auto_stop_machines = "off"
+  auto_start_machines = true
+
+  # One Loam turn occupies the process for a long time, so concurrency is set
+  # low on purpose: queueing behind a slow answer is better than accepting
+  # requests this single machine cannot serve.
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 4
+    hard_limit = 8
+
+  # Liveness, against the endpoint that exists and answers unconditionally.
+  # server/index.ts returns {"ok":true,"service":"loam"} from /healthz and
+  # deliberately leaks no configuration.
+  #
+  # /readyz is the better gate, but it returns 503 until Supabase is
+  # configured, so using it before `fly secrets set` would mean the machine
+  # never passes its check. Switch to it once the secrets are in place:
+  #   path = "/readyz"
+  [[http_service.checks]]
+    method = "get"
+    path = "/healthz"
+    protocol = "http"
+    interval = "15s"
+    timeout = "5s"
+    # Generous: `npm ci` is done at build time, but the process still has to
+    # resolve its adapter configuration at boot.
+    grace_period = "20s"
+
+[[vm]]
+  # ~$6.70/month at the time of writing. The backend holds no model: the
+  # heavy work happens on the inference host, so it needs headroom for Node
+  # and nothing more. Raise `memory` before raising `cpus` if it ever OOMs.
+  size = "shared-cpu-1x"
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Secrets to set before switching LOAM_ENV to production. Listed as names
+# only; run these yourself so no value passes through a file or a transcript:
+#
+#   fly secrets set VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=...
+#   fly secrets set LOAM_ALLOWED_ORIGINS=https://<your-frontend-origin>
+#   fly secrets set LOAM_HOSTED_BASE_URL=https://<inference-host>/v1
+#   fly secrets set LOAM_HOSTED_MODEL=<must match llama-server --alias exactly>
+#   fly secrets set LOAM_HOSTED_TOKEN=...        # credential
+#   fly secrets set LOAM_ENV=production
+#
+# The anon key is browser-safe by design. The service-role key is NOT used by
+# this server and must not be set.

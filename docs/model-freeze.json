@@ -1,0 +1,234 @@
+{
+  "$comment": [
+    "THE FROZEN MODEL. Machine-readable half of docs/loamy-system-of-record.md.",
+    "",
+    "tests/security/model-freeze.test.ts reads this file and the live schema and",
+    "fails when they disagree. Editing this file to make a test pass is a",
+    "decision to change the model, and should be as deliberate as it sounds.",
+    "",
+    "Frozen 2026-09-20, before Block 3 (marketplace discovery intelligence)."
+  ],
+  "frozen_at": "2026-09-20",
+  "frozen_before": "block-3-marketplace-discovery",
+
+  "concepts": {
+    "identity": {
+      "authoritative_table": "profiles",
+      "authoritative_functions": [
+        "loamy_set_username",
+        "loamy_username_available",
+        "loamy_profile_by_username"
+      ],
+      "supporting_tables": ["user_platform_roles", "username_history", "reserved_usernames", "role_details"],
+      "views": ["loamy_public_profiles", "loamy_profile_handles"],
+      "rule": "The public payload of loamy_profile_by_username is the security contract. No phone, email, digital_id, role_data or financing may be added to it."
+    },
+    "reputation": {
+      "authoritative_table": "reviews",
+      "authoritative_functions": [
+        "loamy_submit_review",
+        "loamy_can_review",
+        "loamy_profile_reviews",
+        "loamy_rating_summary",
+        "loamy_respond_to_review",
+        "loamy_hide_review"
+      ],
+      "rule": "A review cites a transaction the reviewer was party to. The table has no insert policy for anyone. The average is withheld below 3 reviews."
+    },
+    "traceability": {
+      "authoritative_table": "commodity_batches",
+      "authoritative_functions": [
+        "loamy_trace",
+        "loamy_trace_scope",
+        "loamy_trace_batch",
+        "loamy_trace_resolve",
+        "loamy_trace_batch_for_ref",
+        "loamy_trace_financing",
+        "loamy_trace_identity"
+      ],
+      "supporting_tables": ["batch_events", "loamy_entity_refs", "loamy_ref_counters"],
+      "rule": "Absent and withheld are different answers and must never be conflated. Any new trace entry point returns available=false with a reason, never a silent gap."
+    },
+    "deal": {
+      "authoritative_table": "transactions",
+      "retained_not_authoritative": [
+        "orders",
+        "order_items",
+        "platform_transactions",
+        "escrow_transactions"
+      ],
+      "rule": "transactions is the deal. It carries the three state machines and the batch link. Do not add a sixth representation; extend transactions or use it."
+    },
+    "money_movement": {
+      "authoritative_table": "ledger_entries",
+      "supporting_tables": ["ledger_accounts", "reconciliation_runs"],
+      "retained_not_authoritative": ["wallet_entries", "order_payments", "order_payouts"],
+      "rule": "Double-entry. Every economic event posts lines summing to zero. loamy_post_ledger is not granted to authenticated. The partner_funding and external_settlement account types are MEMORANDUM: they record money moving between an institution and a member without passing through Loamy, and are never a member balance."
+    },
+    "escrow": {
+      "authoritative_table": "escrow_workflows",
+      "supporting_tables": ["escrow_workflow_events", "escrow_transition_rules"],
+      "retained_not_authoritative": ["escrow_transactions", "escrow_events"],
+      "rule": "Release is reachable only from accepted, which is reachable only from delivered, and only the buyer may set it."
+    },
+    "verification": {
+      "authoritative_table": "verification_tasks",
+      "supporting_tables": [
+        "verification_evidence", "verification_reviews", "verification_checklists",
+        "restricted_task_types"
+      ],
+      "retained_not_authoritative": ["inspection_jobs"],
+      "authoritative_functions": [
+        "loamy_create_task",
+        "loamy_publish_task",
+        "loamy_claim_task",
+        "loamy_accept_task",
+        "loamy_decline_task",
+        "loamy_reassign_task",
+        "loamy_expire_tasks",
+        "loamy_set_task_expiry",
+        "loamy_available_tasks",
+        "loamy_my_tasks",
+        "loamy_task_detail",
+        "loamy_update_task_progress",
+        "loamy_submit_checklist",
+        "loamy_checklist_for",
+        "loamy_submit_evidence",
+        "loamy_supersede_evidence",
+        "loamy_review_verification_case",
+        "loamy_assignment_candidates",
+        "loamy_dispute_verification",
+        "loamy_trace_agent_chain"
+      ],
+      "rule": "The agent's identity is never disclosed to the parties, and the agent is never told who requested the inspection. Collection is not approval. Evidence is append-only and superseded rather than replaced. Checklists are versioned, and a task records the version it was answered against."
+    },
+    "field_operations": {
+      "authoritative_table": "growth_partner_operations",
+      "supporting_tables": ["partner_assignments", "partner_earnings"],
+      "authoritative_functions": [
+        "loamy_gp_set_training",
+        "loamy_gp_set_suspension",
+        "loamy_gp_set_availability",
+        "loamy_gp_can_take",
+        "loamy_gp_performance",
+        "loamy_accrue_commission",
+        "loamy_commission_transition",
+        "loamy_my_commission_summary"
+      ],
+      "rule": "Training, clearance and suspension are admin-written; an agent cannot certify or unsuspend themselves. Performance is a list of facts, never a score. Commission is an ENTITLEMENT in partner_earnings; the MONEY is double-entry in ledger_entries. Only a Growth Partner earns cash -- an ordinary referral never can.",
+      "added": "2026-09-20, Block 5. Registered deliberately, per the freeze."
+    },
+    "financing": {
+      "authoritative_table": "financing_applications",
+      "supporting_tables": ["financing_events", "banks", "bank_account_links", "seller_payout_accounts"],
+      "authoritative_functions": [
+        "loamy_apply_financing_for_transaction",
+        "loamy_financing_decision",
+        "loamy_bank_capabilities",
+        "loamy_financing_partners",
+        "loamy_sandbox_bank_decision",
+        "loamy_settlement_readiness",
+        "loamy_record_supplier_settlement",
+        "loamy_record_repayment_status",
+        "loamy_batch_financing_commitment",
+        "loamy_request_financing_verification",
+        "loamy_transaction_journey",
+        "loamy_set_payout_account"
+      ],
+      "rule": "Tied to a transaction, not a naira request. Loamy never writes approved_amount, disbursed_amount or bank_id. No BVN column may exist anywhere. Settlement is gated on every condition and recorded as a MEMORANDUM -- Loamy holds no financing proceeds. A sandbox decision is marked is_sandbox everywhere it appears."
+    },
+    "market_reference_price": {
+      "authoritative_table": "market_price_updates",
+      "retained_not_authoritative": ["market_prices", "market_prices_history"],
+      "rule": "A reference price is always attributed to a named market and a date. There is no national benchmark."
+    },
+    "logistics": {
+      "authoritative_table": "transport_jobs",
+      "supporting_tables": ["transport_offers", "shipment_events", "logistics_transition_rules", "loading_confirmations"],
+      "authoritative_functions": [
+        "loamy_request_transport_for_transaction",
+        "loamy_select_transport_offer",
+        "loamy_record_loading",
+        "loamy_logistics_estimate"
+      ],
+      "rule": "An estimate must come from observed corridor data or be reported as unavailable. One transport model serves both RFQ awards and marketplace transactions; an award is exclusive. Loading is evidenced, and delivery is not reachable from approval."
+    },
+    "discovery": {
+      "authoritative_table": "discovery_events",
+      "authoritative_functions": [
+        "loamy_record_discovery_event",
+        "loamy_inferred_preferences",
+        "loamy_discover_supply",
+        "loamy_seller_signals",
+        "loamy_reference_price",
+        "loamy_price_comparison",
+        "loamy_logistics_estimate",
+        "loamy_unit_kg"
+      ],
+      "supporting_tables": ["buyer_preferences", "commodity_units"],
+      "rule": "Behaviour is append-only and readable only by its own actor. Ranking is deterministic and returns its weights. No superlative without a stated comparison population; no price comparison without a named market and date; no freight estimate without observed corridor data.",
+      "added": "2026-09-20, Block 3. Registered deliberately: the freeze requires the manifest and the system-of-record document to change in the same commit as the migration."
+    },
+    "referral": {
+      "authoritative_table": "referrals",
+      "supporting_tables": ["referral_programmes", "referral_benefits", "onboarded_farmers"],
+      "authoritative_functions": [
+        "loamy_attribute_referral",
+        "loamy_record_referral",
+        "loamy_my_referral_code",
+        "loamy_my_referral_summary",
+        "loamy_referral_qualifies",
+        "loamy_qualify_referral",
+        "loamy_check_my_referrals",
+        "loamy_redeem_benefit",
+        "loamy_invalidate_referral",
+        "loamy_upsert_referral_programme",
+        "loamy_active_referral_programme"
+      ],
+      "rule": "Ordinary referrals earn NON-CASH platform benefits only. referral_benefits has no amount column and no currency column, so an ordinary referral has nowhere to record money -- the guarantee is structural, not editorial. Attribution is immutable and one per person. A referral is bound to the programme active when it was made, so a later programme change never rewrites it. Growth Partner commission is a SEPARATE graph in partner_earnings and must never be reachable from a referral.",
+      "added": "2026-09-20, Block 6. Registered deliberately, per the freeze."
+    },
+    "intelligence": {
+      "authoritative_table": "intelligence_outputs",
+      "supporting_tables": ["intelligence_feedback", "data_quality_findings", "evidence_weights"],
+      "authoritative_functions": [
+        "loamy_record_intelligence",
+        "loamy_demand_signal",
+        "loamy_supply_signal",
+        "loamy_conversion_funnel",
+        "loamy_price_history",
+        "loamy_seasonal_pattern",
+        "loamy_evidence_weight",
+        "loamy_min_group_size",
+        "loamy_role_intelligence",
+        "loamy_bank_portfolio_intelligence",
+        "loamy_run_data_quality",
+        "loamy_resolve_data_quality",
+        "loamy_submit_intelligence_feedback"
+      ],
+      "rule": "Every output carries a NOT NULL classification: observed, user_generated or model_inference. An inference can never pass as an observation. Outputs are append-only and SUPERSEDED, never edited, so a model change cannot rewrite history. Aggregates carry a k-anonymity floor that WITHHOLDS rather than rounds. Listed, verified and transacted supply are three numbers and are never summed. Feedback lives in its own table and has no path to source data. Data quality findings are flagged, never deleted. No function or table may infer a sensitive personal characteristic.",
+      "added": "2026-09-20, Block 7. Registered deliberately, per the freeze."
+    },
+    "storage": {
+      "authoritative_table": "warehouse_receipts",
+      "supporting_tables": ["warehouse_reservations", "service_directory"],
+      "rule": "A receipt is a movement of real stock; reservations are intent."
+    }
+  },
+
+  "forbidden_new_tables": {
+    "$comment": "Regexes. A NEW public table matching one of these, that is not already named above, fails the freeze test. It does not mean the table is wrong -- it means the model changed and the manifest and the system-of-record document must be updated in the same commit.",
+    "deal": "^(deals?|orders?_v\\d|trades?|purchases?|sales?|contracts?_v\\d)$",
+    "money_movement": "^(wallets?|balances?|payments?|payouts?|transfers?|ledgers?)$",
+    "identity": "^(users?|accounts?|members?|handles?|usernames?)$",
+    "reputation": "^(ratings?|feedback|testimonials?|seller_scores?)$",
+    "recommendation": "^(recommendations?|rankings?|scores?|ml_.*|ai_.*)$"
+  },
+
+  "invariants": [
+    "Every table in public has row-level security enabled.",
+    "No column anywhere may hold a BVN or NIN. bvn_verified / nin_verified are status booleans.",
+    "Append-only logs have no client write path: batch_events, transaction_events, entity_observations, verification_evidence, shipment_events, financing_events, escrow_workflow_events, ledger_entries, audit_events, discovery_events.",
+    "Every loamy_ SECURITY DEFINER function pins search_path."
+  ]
+}

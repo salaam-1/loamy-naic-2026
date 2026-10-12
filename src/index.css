@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* 15px base — all rem-scaled utilities densify proportionally. */
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* LEVEL 0 — the page environment.
+     A barely-perceptible tonal gradient plus a low-contrast grain, fixed so
+     it does not slide under scrolling content. The grain is an inline SVG
+     turbulence filter: no image request, a few hundred bytes, and it is what
+     keeps a large warm surface from reading as printed card stock. */
+  body {
+    @apply bg-env-page font-sans text-emerald-950;
+    background-attachment: fixed;
+    letter-spacing: -0.01em;
+    line-height: 1.45;
+  }
+
+  body::before {
+    @apply pointer-events-none fixed inset-0 z-0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.035;
+  }
+
+  /* Everything the app renders sits above the grain. */
+  #root {
+    @apply relative z-10;
+  }
+
+  /* Data font: JetBrains Mono, ligatures OFF (rule 2). */
+  .font-mono,
+  code,
+  kbd,
+  pre {
+    font-variant-ligatures: none;
+    font-feature-settings: 'liga' 0, 'calt' 0;
+  }
+
+  /* lucide-react only, monochrome, 1.5px stroke (rule 5). */
+  svg.lucide {
+    stroke-width: 1.5;
+  }
+
+  ::selection {
+    @apply bg-gold-200 text-emerald-950;
+  }
+
+  /* Tabular figures everywhere a number carries meaning. Proportional digits
+     make a column of prices impossible to scan, because the glyphs no longer
+     line up vertically. */
+  .font-mono,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One focus treatment for the whole product, so a keyboard user sees the
+     same ring on a button, a link and a card.
+
+     tabindex="-1" is excluded on purpose. Those are containers we focus
+     PROGRAMMATICALLY so a screen reader lands in the right place — a modal
+     panel, the privacy notice — and Chrome matches :focus-visible on them,
+     which drew a 2px ring around the whole panel. The ring should mark where
+     the keyboard is, not where the page moved focus on the user's behalf. */
+  :focus-visible:not([tabindex='-1']) {
+    @apply outline-none ring-2 ring-emerald-500 ring-offset-2 ring-offset-bone;
+  }
+}
+
+@layer components {
+  /* ----------------------------------------------------------------------
+     SURFACE LEVELS (§57)
+
+     Depth comes from how a surface sits in light -- tone, translucency,
+     border, blur, elevation -- not from giving each one a different fill.
+     These are the only five levels; a component that wants a sixth is
+     usually a component that wants less.
+     ---------------------------------------------------------------------- */
+
+  /* LEVEL 1 — primary content surface. Nearly transparent, so the page
+     environment and its grain show through rather than being covered up. */
+  .surface-1 {
+    @apply rounded-card border border-clay/70 bg-white/55 backdrop-blur-[2px];
+  }
+
+  /* LEVEL 2 — elevated card. The workhorse. */
+  .surface-2 {
+    @apply rounded-card border border-clay bg-env-panel shadow-sm;
+  }
+
+  /* LEVEL 3 — floating: sticky bars, popovers, the mobile tab bar. This is
+     where translucency earns its place, because content scrolls beneath. */
+  .surface-3 {
+    @apply rounded-card border border-clay/80 bg-white/80 shadow-md backdrop-blur-panel;
+  }
+
+  /* LEVEL 4 — modal and drawer. Opaque on purpose: a dialog that shows the
+     page through it is harder to read, and this is the one moment the rest
+     of the product should recede. */
+  .surface-4 {
+    @apply rounded-card border border-clay bg-white shadow-lg;
+  }
+
+  /* An inset well: table rows, summary strips, selected states. Recedes
+     rather than rises, which is what "this is part of the surface behind
+     it" should look like. */
+  .surface-inset {
+    @apply rounded-lg border border-clay/60 bg-sand/60;
+  }
+
+  /* Photographic surfaces. The scrim is a pseudo-element so the image can be
+     a plain <img> that lazy-loads and scales, rather than a CSS background
+     the browser cannot prioritise. */
+  .image-surface {
+    @apply relative overflow-hidden rounded-card;
+  }
+  .image-surface::after {
+    @apply pointer-events-none absolute inset-0 bg-image-scrim;
+    content: '';
+  }
+  .image-surface-soft::after {
+    @apply bg-image-scrim-soft;
+  }
+}
+
+@layer utilities {
+  /* Skeleton shimmer. A moving highlight reads as "loading"; a static grey
+     block reads as "broken". */
+  .skeleton {
+    @apply relative overflow-hidden bg-clay/50;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.45) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    content: '';
+  }
+}
+
+/* Honour the operating-system setting. Motion here communicates state, so it
+   is removed rather than merely shortened -- a 1ms animation still triggers
+   vestibular symptoms in some people if it moves. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    /* Delay matters as much as duration here. A staggered entrance whose
+       duration is collapsed but whose delay is not leaves the content INVISIBLE
+       for the length of the delay -- exactly the "hidden waiting for an
+       animation" failure this rule exists to prevent. */
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    display: none;
+  }
+}
+
+/* Credit Intelligence Report: clean A4 print-to-PDF. */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .report-section {
+    break-inside: avoid;
+  }
+}

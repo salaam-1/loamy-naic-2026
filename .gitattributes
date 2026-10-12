@@ -1,0 +1,10 @@
+# Keep .mjs checked out with LF on every platform.
+#
+# Vite's transform fails on a CRLF .mjs that is imported from a .ts test:
+#   SyntaxError: Invalid or unexpected token
+# Plain `node --check` and a direct `import()` both parse the same file
+# happily, so this only surfaces through the test pipeline. On Windows,
+# core.autocrlf rewrites the file at checkout, which means a fresh clone would
+# fail tests/unit/account-classification.test.ts while the committed bytes are
+# perfectly valid. Pinning eol=lf removes the whole class.
+*.mjs text eol=lf

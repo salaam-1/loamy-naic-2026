@@ -1,0 +1,87 @@
+# What must never reach a build context, and what simply has no business
+# being there.
+#
+# The Dockerfile copies named paths rather than `COPY . .`, so this is a
+# second line of defence rather than the only one. Both exist because the
+# first thing anyone does when a build fails is replace the explicit COPYs
+# with `COPY . .`, and on that day this file is what stops a WhatsApp session
+# or a .env from being baked into a layer.
+
+# --- Credentials and session state: THE IMPORTANT PART --------------------
+# `tools/loamy-whatsapp-poc/auth_info/` holds Baileys credentials -- noise
+# keys, a signed identity key, 70 files including creds.json. Anyone with
+# them can act as that WhatsApp account. They are already git-ignored by the
+# proof of concept's own .gitignore; this keeps them out of Docker too, which
+# .gitignore does not do.
+tools/
+tools/loamy-whatsapp-poc/auth_info/
+**/auth_info/
+
+# Local environment files. `.env` currently holds real Supabase and Paystack
+# values. Image layers are readable by anyone who can pull the image.
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# Hugging Face / inference credentials, if any ever land here.
+**/.huggingface/
+**/token
+
+# --- Large or irrelevant to the backend -----------------------------------
+node_modules
+**/node_modules
+
+# Build output: regenerated inside the image. Copying a host-built bundle
+# would ship whatever was last compiled on a laptop.
+dist
+dist-server
+
+# The Python speech-to-text environment: a virtualenv plus ~4.6 GiB of model
+# weights. Nothing in the Node backend touches it.
+.venv-stt
+.venv
+**/__pycache__
+**/*.pyc
+
+# Audio fixtures (several MB of WAV) and model artefacts.
+scripts/stt-poc/audio/
+**/*.wav
+**/*.gguf
+**/*.safetensors
+**/*.bin
+
+# --- Development-only ------------------------------------------------------
+.git
+.gitignore
+.github
+tests
+docs
+public
+supabase
+playwright-report
+test-results
+*.log
+npm-debug.log*
+
+# Editor and OS noise
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Frontend-only configuration. The backend bundle is built by
+# scripts/build-server.mjs and reads none of these.
+vite.config.ts
+vitest.config.ts
+vitest.security.config.ts
+tailwind.config.js
+tailwind.config.ts
+postcss.config.js
+index.html
+vercel.json
+
+# Container files themselves
+Dockerfile
+.dockerignore
+fly.toml

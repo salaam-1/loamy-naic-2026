@@ -1,0 +1,21 @@
+{
+  "$comment": [
+    "Single source of truth for which Supabase project is production.",
+    "",
+    "The production ref is NOT a secret: it is part of VITE_SUPABASE_URL, which",
+    "is compiled into the browser bundle and served to every visitor. It is",
+    "recorded here so the guards in scripts/_environment.mjs and",
+    "tests/helpers/environment.ts cannot drift apart, and so that adding a",
+    "second protected project is a one-line change rather than a code change.",
+    "",
+    "Anything listed under protectedRefs is refused as a target by every",
+    "mutation-heavy test, fixture and QA harness."
+  ],
+  "production": {
+    "ref": "lsuqbjwlybzhyuvzgtdj",
+    "label": "Loamy production (real Founding Member data)"
+  },
+  "protectedRefs": ["lsuqbjwlybzhyuvzgtdj"],
+  "testEnvFile": ".env.test",
+  "requiredTestVars": ["LOAMY_TEST_SUPABASE_URL", "LOAMY_TEST_SUPABASE_ANON_KEY"]
+}
